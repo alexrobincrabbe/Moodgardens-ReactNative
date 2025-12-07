@@ -16,8 +16,8 @@ import {
   CreateDiaryEntry,
   TodayMetaQuery,
   RequestGenerateGarden,
-  GetGarden,
 } from "../graphql/diary";
+import { GetGarden } from "../graphql/gardens";
 
 type GardenType = "CLASSIC" | "UNDERWATER" | "GALAXY";
 type GardenStatus = "PENDING" | "READY" | "FAILED";

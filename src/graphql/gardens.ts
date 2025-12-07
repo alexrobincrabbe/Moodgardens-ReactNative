@@ -17,3 +17,37 @@ export const GardensByMonth = gql`
     }
   }
 `;
+
+export const GetGarden = gql`
+  query GetGarden($period: GardenPeriod!, $periodKey: String!) {
+    garden(period: $period, periodKey: $periodKey) {
+      id
+      status
+      imageUrl
+      publicId
+      shareUrl
+      summary
+      period
+      periodKey
+      progress
+      updatedAt
+    }
+  }
+`;
+
+export const GetGardensByPeriod = gql`
+  query GetGardensByPeriod($period: GardenPeriod!) {
+    gardensByPeriod(period: $period) {
+      id
+      status
+      imageUrl
+      publicId
+      shareUrl
+      summary
+      period
+      periodKey
+      progress
+      updatedAt
+    }
+  }
+`;

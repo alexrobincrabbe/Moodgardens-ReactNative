@@ -8,6 +8,7 @@ import {
   Text,
   TextInput,
   View,
+  ScrollView
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -16,7 +17,11 @@ import { useQuery, useMutation } from "@apollo/client/react";
 import * as SecureStore from "expo-secure-store";
 
 import { CURRENT_USER_QUERY } from "../graphql/auth";
-import { UpdateUserProfile, ChangePassword } from "../graphql/user";
+import { UpdateUserProfile, ChangePassword } from "../graphql/userProfile";
+import {
+  MARK_USER_PREMIUM_FROM_MOBILE,
+  ADD_REGEN_TOKENS_FROM_MOBILE,
+} from "../graphql/billing"; // 👈 new
 
 interface CurrentUserData {
   user: {
@@ -26,6 +31,7 @@ interface CurrentUserData {
     isPremium?: boolean | null;
     premiumSince?: string | null;
     createdAt?: string | null;
+    regenerateTokens?: number | null; // 👈 new
   } | null;
 }
 
@@ -71,6 +77,20 @@ export function AccountScreen() {
     useMutation<UpdateUserProfileData>(UpdateUserProfile);
   const [changePassword, { loading: savingPassword }] =
     useMutation<ChangePasswordData>(ChangePassword);
+
+  // 👇 new mutations
+  const [markPremium, { loading: upgradingPremium }] = useMutation(
+    MARK_USER_PREMIUM_FROM_MOBILE,
+    {
+      refetchQueries: [CURRENT_USER_QUERY],
+    }
+  );
+  const [addRegenTokens, { loading: addingTokens }] = useMutation(
+    ADD_REGEN_TOKENS_FROM_MOBILE,
+    {
+      refetchQueries: [CURRENT_USER_QUERY],
+    }
+  );
 
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -182,6 +202,36 @@ export function AccountScreen() {
     }
   }
 
+  // 👇 new: dev fake upgrade + tokens
+
+  async function handleDevUpgradePremium() {
+    try {
+      await markPremium();
+      Alert.alert(
+        "Premium activated (dev)",
+        "Your account is now marked as premium."
+      );
+    } catch (e: any) {
+      console.error("[premium] dev upgrade error", e);
+      Alert.alert(
+        "Upgrade failed",
+        e.message ?? "Could not mark account as premium."
+      );
+    }
+  }
+
+  async function handleDevAddTokens() {
+    try {
+      await addRegenTokens({
+        variables: { amount: 5 }, // give 5 tokens at a time for dev
+      });
+      Alert.alert("Tokens added (dev)", "You received 5 regenerate tokens.");
+    } catch (e: any) {
+      console.error("[tokens] dev add error", e);
+      Alert.alert("Error", e.message ?? "Could not add regenerate tokens.");
+    }
+  }
+
   if (loading && !data) {
     return (
       <SafeAreaView style={styles.center}>
@@ -221,130 +271,188 @@ export function AccountScreen() {
       </SafeAreaView>
     );
   }
-
   const isPremium = !!user.isPremium;
+  const regenTokens = user.regenerateTokens ?? 0;
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Account</Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.title}>Account</Text>
 
-      {/* PROFILE SECTION */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Profile</Text>
+        {/* PROFILE SECTION */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Profile</Text>
 
-        <Text style={styles.label}>Display name</Text>
-        <TextInput
-          style={styles.input}
-          value={displayName}
-          onChangeText={setDisplayName}
-          placeholder="Your display name"
-        />
+          <Text style={styles.label}>Display name</Text>
+          <TextInput
+            style={styles.input}
+            value={displayName}
+            onChangeText={setDisplayName}
+            placeholder="Your display name"
+          />
 
-        <Text style={styles.label}>Email</Text>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          placeholder="you@example.com"
-        />
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            placeholder="you@example.com"
+          />
 
-        {profileMessage && (
-          <Text
-            style={[
-              styles.message,
-              profileMessage.includes("✔") ? styles.messageSuccess : styles.messageError,
-            ]}
-          >
-            {profileMessage}
+          {profileMessage && (
+            <Text
+              style={[
+                styles.message,
+                profileMessage.includes("✔")
+                  ? styles.messageSuccess
+                  : styles.messageError,
+              ]}
+            >
+              {profileMessage}
+            </Text>
+          )}
+
+          <View style={{ marginTop: 8 }}>
+            <Button
+              title={savingProfile ? "Saving…" : "Save profile"}
+              onPress={handleSaveProfile}
+              disabled={savingProfile}
+            />
+          </View>
+        </View>
+
+        {/* PASSWORD SECTION */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Change password</Text>
+
+          <Text style={styles.label}>Current password</Text>
+          <TextInput
+            style={styles.input}
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+            secureTextEntry
+          />
+
+          <Text style={styles.label}>New password</Text>
+          <TextInput
+            style={styles.input}
+            value={newPassword}
+            onChangeText={setNewPassword}
+            secureTextEntry
+          />
+
+          <Text style={styles.label}>Confirm new password</Text>
+          <TextInput
+            style={styles.input}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+          />
+
+          {passwordMessage && (
+            <Text
+              style={[
+                styles.message,
+                passwordMessage.includes("✔")
+                  ? styles.messageSuccess
+                  : styles.messageError,
+              ]}
+            >
+              {passwordMessage}
+            </Text>
+          )}
+
+          <View style={{ marginTop: 8 }}>
+            <Button
+              title={savingPassword ? "Changing…" : "Change password"}
+              onPress={handleChangePassword}
+              disabled={savingPassword}
+            />
+          </View>
+        </View>
+
+        {/* PLAN + TOKENS SECTION */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Plan & tokens</Text>
+
+          {/* Premium status */}
+          <Text style={styles.label}>Subscription</Text>
+          <Text style={[styles.value, isPremium && styles.premiumValue]}>
+            {isPremium ? "Premium 🌟" : "Free"}
           </Text>
-        )}
 
-        <View style={{ marginTop: 8 }}>
+          {!isPremium && (
+            <View style={{ marginTop: 8 }}>
+              <Button
+                title={
+                  upgradingPremium
+                    ? "Activating Premium (dev)…"
+                    : "Activate Premium (dev only)"
+                }
+                onPress={handleDevUpgradePremium}
+                disabled={upgradingPremium}
+              />
+            </View>
+          )}
+
+          {isPremium && (
+            <Text style={[styles.muted, { marginTop: 4 }]}>
+              You’re marked as premium. Real in-app purchases will be added
+              later.
+            </Text>
+          )}
+
+          {/* Regenerate tokens */}
+          <View style={{ marginTop: 16 }}>
+            <Text style={styles.label}>Regenerate gardens tokens</Text>
+            <Text style={styles.value}>
+              {regenTokens} token{regenTokens === 1 ? "" : "s"} available
+            </Text>
+
+            <Text style={[styles.muted, { marginTop: 4 }]}>
+              Tokens let you regenerate an existing garden with a new variation.
+              For now, you can add tokens in dev mode.
+            </Text>
+
+            <View style={{ marginTop: 8 }}>
+              <Button
+                title={
+                  addingTokens
+                    ? "Adding tokens (dev)…"
+                    : "Get 5 tokens (dev only)"
+                }
+                onPress={handleDevAddTokens}
+                disabled={addingTokens}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* LOGOUT */}
+        <View style={styles.logoutWrap}>
           <Button
-            title={savingProfile ? "Saving…" : "Save profile"}
-            onPress={handleSaveProfile}
-            disabled={savingProfile}
+            title={loggingOut ? "Logging out…" : "Log out"}
+            color="#c0392b"
+            onPress={handleLogout}
+            disabled={loggingOut}
           />
         </View>
-      </View>
-
-      {/* PASSWORD SECTION */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Change password</Text>
-
-        <Text style={styles.label}>Current password</Text>
-        <TextInput
-          style={styles.input}
-          value={currentPassword}
-          onChangeText={setCurrentPassword}
-          secureTextEntry
-        />
-
-        <Text style={styles.label}>New password</Text>
-        <TextInput
-          style={styles.input}
-          value={newPassword}
-          onChangeText={setNewPassword}
-          secureTextEntry
-        />
-
-        <Text style={styles.label}>Confirm new password</Text>
-        <TextInput
-          style={styles.input}
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          secureTextEntry
-        />
-
-        {passwordMessage && (
-          <Text
-            style={[
-              styles.message,
-              passwordMessage.includes("✔")
-                ? styles.messageSuccess
-                : styles.messageError,
-            ]}
-          >
-            {passwordMessage}
-          </Text>
-        )}
-
-        <View style={{ marginTop: 8 }}>
-          <Button
-            title={savingPassword ? "Changing…" : "Change password"}
-            onPress={handleChangePassword}
-            disabled={savingPassword}
-          />
-        </View>
-      </View>
-
-      {/* PLAN + LOGOUT SECTION */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Plan</Text>
-        <Text style={styles.label}>Status</Text>
-        <Text style={[styles.value, isPremium && styles.premiumValue]}>
-          {isPremium ? "Premium 🌟" : "Free"}
-        </Text>
-        <Text style={[styles.muted, { marginTop: 4 }]}>
-          Managing upgrade/cancellation can stay on the web app for now.
-        </Text>
-      </View>
-
-      <View style={styles.logoutWrap}>
-        <Button
-          title={loggingOut ? "Logging out…" : "Log out"}
-          color="#c0392b"
-          onPress={handleLogout}
-          disabled={loggingOut}
-        />
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  scrollContent: {
+    padding: 16,
+    paddingTop: 50,
+    paddingBottom: 24, // so last button isn’t flush with bottom
+  },
   center: {
     flex: 1,
     padding: 24,
@@ -418,5 +526,6 @@ const styles = StyleSheet.create({
   },
   logoutWrap: {
     marginTop: 8,
+    marginBottom: 16,
   },
 });

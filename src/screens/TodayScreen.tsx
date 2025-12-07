@@ -8,6 +8,7 @@ import {
   Button,
   TouchableOpacity,
   RefreshControl,
+  Image,
 } from "react-native";
 import { useQuery } from "@apollo/client/react";
 import { NetworkStatus } from "@apollo/client";
@@ -18,7 +19,7 @@ import {
   GetDiaryEntry,
   PaginatedDiaryEntries,
 } from "../graphql/diary";
-import { Image } from "react-native";
+import { getOptimizedCloudinaryUrl } from "../utils/cloudinary"; // 👈 NEW
 
 type GardenStatus = "PENDING" | "READY" | "FAILED";
 
@@ -42,8 +43,8 @@ interface DiaryEntry {
   garden?: {
     id: string;
     status: GardenStatus;
-    imageUrl?: string | null;
-    publicId?: string | null;
+    imageUrl?: string | null;   // still in type, but no longer used
+    publicId?: string | null;   // 👈 important for Cloudinary
     shareUrl?: string | null;
     progress?: number | null;
     periodKey: string;
@@ -64,7 +65,6 @@ const PAGE_SIZE = 10;
 export function TodayScreen() {
   const navigation: any = useNavigation();
 
-  // Who is logged in? (for greeting, minimal)
   const { data: userData } = useQuery<CurrentUserData>(CURRENT_USER_QUERY);
   const displayName = userData?.user?.displayName ?? "friend";
 
@@ -103,6 +103,7 @@ export function TodayScreen() {
     notifyOnNetworkStatusChange: true,
     fetchPolicy: "cache-and-network",
   });
+
   const entries = feedData?.paginatedDiaryEntries ?? [];
   const loadingMore = networkStatus === NetworkStatus.fetchMore;
 
@@ -130,11 +131,11 @@ export function TodayScreen() {
   }, [loadingMore, feedLoading, entries.length, fetchMore]);
 
   const onPressNewEntry = () => {
-    navigation.navigate("NewEntry"); // we'll create this screen next
+    navigation.navigate("NewEntry");
   };
+
   useFocusEffect(
     useCallback(() => {
-      // When the screen comes into focus, refresh everything
       refetchTodayMeta();
       refetchTodayEntry();
       refetchFeed();
@@ -153,20 +154,26 @@ export function TodayScreen() {
       navigation.navigate("EntryDetail", { entry: item });
     };
 
+    // 👇 NEW: build Cloudinary thumbnail from publicId
+    const thumbUrl =
+      status === "READY" && garden?.publicId
+        ? getOptimizedCloudinaryUrl(garden.publicId, 800)
+        : null;
+
     return (
       <TouchableOpacity
         style={styles.entryCard}
         activeOpacity={0.8}
-        onPress={onPress} // 👈 navigate to detail
+        onPress={onPress}
       >
         <Text style={styles.entryDate}>{item.dayKey}</Text>
         <Text style={styles.entryText} numberOfLines={3}>
           {item.text}
         </Text>
 
-        {status === "READY" && garden?.imageUrl && (
+        {status === "READY" && thumbUrl && (
           <Image
-            source={{ uri: garden.imageUrl }}
+            source={{ uri: thumbUrl }}
             style={styles.gardenImage}
             resizeMode="cover"
           />
@@ -215,7 +222,6 @@ export function TodayScreen() {
     }
 
     if (!todayKey) {
-      // This should be rare, but just in case
       return (
         <View style={styles.todayCard}>
           <Text style={styles.title}>Today</Text>
@@ -227,7 +233,6 @@ export function TodayScreen() {
     }
 
     if (!todayEntry) {
-      // No entry yet → CTA to write today's entry
       return (
         <View style={styles.todayCard}>
           <Text style={styles.title}>Today</Text>
@@ -245,7 +250,6 @@ export function TodayScreen() {
       );
     }
 
-    // Entry exists → show simple “done” card (we'll add garden preview later)
     return (
       <View style={styles.todayCard}>
         <Text style={styles.title}>Today</Text>
@@ -254,14 +258,11 @@ export function TodayScreen() {
           You already wrote your entry for today ({todayKey}). Scroll down to
           revisit your past gardens.
         </Text>
-
-        {/* later we can add a "View today’s garden" button here */}
       </View>
     );
   };
 
   if (feedLoading && !entries.length) {
-    // Initial load
     return (
       <View style={styles.center}>
         <ActivityIndicator />
@@ -300,7 +301,6 @@ export function TodayScreen() {
         <RefreshControl
           refreshing={networkStatus === NetworkStatus.refetch}
           onRefresh={() => {
-            // Pull-to-refresh: update meta, today entry, and feed
             refetchTodayMeta();
             refetchTodayEntry();
             refetchFeed();
@@ -314,11 +314,10 @@ export function TodayScreen() {
 const styles = StyleSheet.create({
   gardenImage: {
     width: "100%",
-    aspectRatio: 1, // ← keeps square shape
+    aspectRatio: 1, // keep square
     borderRadius: 8,
     marginTop: 8,
   },
-
   center: {
     flex: 1,
     padding: 24,

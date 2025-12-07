@@ -20,11 +20,10 @@ export const CURRENT_USER_QUERY = gql`
       id
       email
       displayName
-      timezone
-      dayRolloverHour
-      notifyWeeklyGarden
-      notifyMonthlyGarden
-      notifyYearlyGarden
+      isPremium
+      premiumSince
+      regenerateTokens   # 👈 new
+      createdAt
     }
   }
 `;

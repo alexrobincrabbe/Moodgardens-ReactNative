@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -68,6 +68,10 @@ export function GardensScreen() {
     fetchPolicy: "cache-and-network",
   });
 
+  useEffect(() => {
+    refetch({ monthKey });
+  }, [monthKey, refetch]);
+
   const gardens = data?.gardensByMonth ?? [];
 
   // Build gallery for modal
@@ -79,6 +83,7 @@ export function GardensScreen() {
         summary: g.summary,
         shareUrl: g.shareUrl ?? null,
         imageUrl: g.imageUrl ?? null,
+        hasDiaryEntry: true, 
       })),
     [gardens]
   );
@@ -147,6 +152,7 @@ export function GardensScreen() {
           </View>
         ) : (
           <Calendar
+            key={monthKey}
             current={`${year}-${String(month).padStart(2, "0")}-01`}
             markedDates={markedDates}
             onDayPress={onDayPress}

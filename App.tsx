@@ -19,6 +19,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { SettingsScreen } from "./src/screens/SettingsScreen"; // 👈 add this
 import { GardensScreen } from "./src/screens/GardensScreen";
+import { HistoryScreen } from "./src/screens/HistoryScreen";
 
 export type RootStackParamList = {
   Welcome: undefined;
@@ -76,6 +77,8 @@ function AppTabs() {
             iconName = focused ? "settings" : "settings-outline";
           } else if (route.name === "Gardens") {
             iconName = focused ? "calendar" : "calendar-outline";
+          }else if (route.name === "History") {
+            iconName = focused ? "book" : "book-outline";
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -90,17 +93,22 @@ function AppTabs() {
       <Tab.Screen
         name="Gardens"
         component={GardensScreen}
-        options={{ tabBarLabel: "Gardens" }}
+        options={{ tabBarLabel: "Hindsight" }}
+      />
+      <Tab.Screen
+        name="History"
+        component={HistoryScreen}
+        options={{ tabBarLabel: "Reflections" }}
       />
       <Tab.Screen
         name="Account"
         component={AccountScreen}
-        options={{ tabBarLabel: "Account" }}
+        options={{ tabBarLabel: "You" }}
       />
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}
-        options={{ tabBarLabel: "Settings" }}
+        options={{ tabBarLabel: "Choices" }}
       />
       
       

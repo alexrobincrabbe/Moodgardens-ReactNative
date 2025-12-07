@@ -13,7 +13,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useQuery, useMutation } from "@apollo/client/react";
 
 import { CURRENT_USER_QUERY } from "../graphql/auth";
-import { UpdateUserSettings } from "../graphql/user";
+import { UpdateUserSettings } from "../graphql/userProfile";
 
 interface CurrentUserData {
   user: {
