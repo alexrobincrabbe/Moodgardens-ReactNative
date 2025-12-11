@@ -8,9 +8,11 @@ const cl = new Cloudinary({
 
 export function getOptimizedCloudinaryUrl(
   publicId: string,
-  width: number
+  width: number,
+  version?: number | null
 ): string {
   const pixelRatio = PixelRatio.get();
+  const v = version != null ? String(version) : undefined;
 
   return cl.url(publicId, {
     width,
@@ -18,5 +20,6 @@ export function getOptimizedCloudinaryUrl(
     quality: "auto",
     fetch_format: "auto",
     dpr: pixelRatio,
+    version: v,  // 👈 this is what changes the URL
   });
 }

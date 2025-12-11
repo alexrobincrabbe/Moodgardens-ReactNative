@@ -14,7 +14,8 @@ import { useQuery, useMutation } from "@apollo/client/react";
 
 import { CURRENT_USER_QUERY } from "../graphql/auth";
 import { UpdateUserSettings } from "../graphql/userProfile";
-
+import { MGButton } from "../components/button";
+import { MGText } from "../components/MGText";
 interface CurrentUserData {
   user: {
     id: string;
@@ -110,7 +111,7 @@ export function SettingsScreen() {
     return (
       <SafeAreaView style={styles.center}>
         <ActivityIndicator />
-        <Text style={styles.muted}>Loading settings…</Text>
+        <MGText style={styles.muted}>Loading settings…</MGText>
       </SafeAreaView>
     );
   }
@@ -118,11 +119,11 @@ export function SettingsScreen() {
   if (error) {
     return (
       <SafeAreaView style={styles.center}>
-        <Text style={styles.error}>
+        <MGText style={styles.error}>
           Could not load settings: {error.message}
-        </Text>
+        </MGText>
         <View style={{ marginTop: 12 }}>
-          <Button title="Retry" onPress={() => refetch()} />
+          <MGButton title="Retry" onPress={() => refetch()} />
         </View>
       </SafeAreaView>
     );
@@ -131,10 +132,9 @@ export function SettingsScreen() {
   if (!user) {
     return (
       <SafeAreaView style={styles.center}>
-        <Text style={styles.title}>Settings</Text>
-        <Text style={styles.muted}>You’re not logged in right now.</Text>
+        <MGText style={styles.muted}>You’re not logged in right now.</MGText>
         <View style={{ marginTop: 12 }}>
-          <Button
+          <MGButton
             title="Go to login"
             onPress={() => {
               const rootNav = navigation.getParent()?.getParent();
@@ -147,16 +147,15 @@ export function SettingsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Settings</Text>
+    <View style={styles.container}>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Day boundaries</Text>
-        <Text style={styles.description}>
+        <MGText style={styles.cardTitle}>Day boundaries</MGText>
+        <MGText style={styles.description}>
           Control how we group your diary entries into “days”.
-        </Text>
+        </MGText>
 
-        <Text style={styles.label}>Timezone (IANA ID, e.g. Europe/Berlin)</Text>
+        <MGText style={styles.label}>Timezone (IANA ID, e.g. Europe/Berlin)</MGText>
         <TextInput
           style={styles.input}
           value={timezone}
@@ -166,13 +165,13 @@ export function SettingsScreen() {
         />
 
         <View style={{ marginTop: 6, marginBottom: 10 }}>
-          <Button
+          <MGButton
             title="Use device timezone"
             onPress={handleUseDeviceTimezone}
           />
         </View>
 
-        <Text style={styles.label}>Day rollover hour (0 – 23)</Text>
+        <MGText style={styles.label}>Day rollover hour (0 – 23)</MGText>
         <TextInput
           style={styles.input}
           value={rolloverHour}
@@ -180,31 +179,31 @@ export function SettingsScreen() {
           keyboardType="number-pad"
           placeholder="0"
         />
-        <Text style={styles.helper}>
+        <MGText style={styles.helper}>
           Example: 3 means your “day” counts entries from 03:00 to 02:59 the
           next day.
-        </Text>
+        </MGText>
 
         {message && (
-          <Text
+          <MGText
             style={[
               styles.message,
               message.includes("✔") ? styles.messageSuccess : styles.messageError,
             ]}
           >
             {message}
-          </Text>
+          </MGText>
         )}
 
         <View style={{ marginTop: 10 }}>
-          <Button
+          <MGButton
             title={saving ? "Saving…" : "Save settings"}
             onPress={handleSave}
             disabled={saving}
           />
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -218,8 +217,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    padding: 16,
-    paddingTop: 50,
+    paddingHorizontal: 16,
   },
   title: {
     fontSize: 22,

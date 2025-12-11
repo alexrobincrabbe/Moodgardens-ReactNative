@@ -16,20 +16,24 @@ import {
   type SelectedGarden,
 } from "../components/GardenPreviewModal";
 import { getOptimizedCloudinaryUrl } from "../utils/cloudinary";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 type GardenPeriod = "DAY" | "WEEK" | "MONTH" | "YEAR";
 
-type Garden = {
+export type Garden = {
   id: string;
   period: GardenPeriod;
   periodKey: string;
   status: "PENDING" | "READY" | "FAILED";
-  imageUrl?: string | null;   // still in the type, but no longer used
+  imageUrl?: string | null; // still in the type, but no longer used
   publicId: string;
+  shortTheme: string | null;
   summary?: string | null;
+  progress?: number | null;
   shareUrl?: string | null;
   updatedAt: string;
   archetype?: string | null;
+  version?: number | null;
 };
 
 type GardensByPeriodData = {
@@ -43,9 +47,15 @@ const PERIOD_LABELS: Record<Exclude<GardenPeriod, "DAY">, string> = {
 };
 
 const PERIOD_COLORS: Record<Exclude<GardenPeriod, "DAY">, string> = {
-  WEEK: "#3b82f6",
-  MONTH: "#a855f7",
-  YEAR: "#f97316",
+  WEEK: "#B4CDC7",
+  MONTH: "#F4BB9C",
+  YEAR: "#A09FFF",
+};
+
+const PERIOD_BACKGROUND_COLORS: Record<Exclude<GardenPeriod, "DAY">, string> = {
+  WEEK: "rgba(180, 205, 199, 0.5)",
+  MONTH: "rgba(244, 187, 156, 0.5)",
+  YEAR: "rgba(255, 231, 215, 0.5)",
 };
 
 export function HistoryScreen() {
@@ -63,7 +73,6 @@ export function HistoryScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalInitialIndex, setModalInitialIndex] = useState(0);
 
-  // Fetch non-daily gardens in parallel
   const {
     data: weekData,
     loading: weekLoading,
@@ -127,6 +136,7 @@ export function HistoryScreen() {
       filteredGardens.map((g) => ({
         dayKey: g.periodKey,
         publicId: g.publicId,
+        shortTheme: g.shortTheme,
         summary: g.summary,
         shareUrl: g.shareUrl ?? null,
         // we deliberately don't set imageUrl; modal uses publicId + Cloudinary
@@ -162,18 +172,11 @@ export function HistoryScreen() {
   }
 
   return (
-    <>
+    <View style={styles.safeArea}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
       >
-        {/* Header */}
-        <Text style={styles.title}>History</Text>
-        <Text style={styles.subtitle}>
-          Explore your weekly, monthly and yearly Mood Gardens on a single
-          timeline. Tap a card to open the flipbook.
-        </Text>
-
         {/* Filter chips */}
         <View style={styles.filtersRow}>
           {(["WEEK", "MONTH", "YEAR"] as const).map((p) => {
@@ -252,31 +255,18 @@ export function HistoryScreen() {
                 ? "Daily"
                 : PERIOD_LABELS[g.period as Exclude<GardenPeriod, "DAY">];
             const color =
-              g.period === "DAY"
-                ? "#10b981"
-                : PERIOD_COLORS[g.period as Exclude<GardenPeriod, "DAY">];
-
-            // Thumbnail URL → use Cloudinary from publicId
+              PERIOD_COLORS[g.period as Exclude<GardenPeriod, "DAY">];
+            const backgroundColor =
+              PERIOD_BACKGROUND_COLORS[
+                g.period as Exclude<GardenPeriod, "DAY">
+              ];
             const thumbUrl = getOptimizedCloudinaryUrl(g.publicId, 144);
 
             return (
               <View key={g.id} style={styles.timelineItem}>
-                {/* Timeline indicator */}
-                <View style={styles.timelineIndicator}>
-                  <View
-                    style={[styles.timelineDot, { backgroundColor: color }]}
-                  />
-                  <View
-                    style={[
-                      styles.timelineLine,
-                      { backgroundColor: "#e5e7eb" },
-                    ]}
-                  />
-                </View>
-
                 {/* Card */}
                 <TouchableOpacity
-                  style={styles.card}
+                  style={[styles.card, { backgroundColor: backgroundColor }]}
                   activeOpacity={0.8}
                   onPress={() =>
                     isReady
@@ -288,24 +278,11 @@ export function HistoryScreen() {
                   <View style={styles.cardBody}>
                     <View style={styles.cardHeaderRow}>
                       <Text style={styles.cardTitle}>
-                        {periodLabel} garden · {g.periodKey}
-                      </Text>
-                      <View
-                        style={[
-                          styles.statusPill,
-                          { borderColor: color },
-                          !isReady && { opacity: 0.7 },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.statusPillText,
-                            { color },
-                          ]}
-                        >
-                          {g.status}
+                        {periodLabel} garden {"\n"}
+                        <Text style={styles.cardSubtitle}>
+                          {formatPeriod(g)}
                         </Text>
-                      </View>
+                      </Text>
                     </View>
 
                     {g.archetype && (
@@ -318,18 +295,8 @@ export function HistoryScreen() {
                         ellipsizeMode="tail"
                         style={styles.cardSummary}
                       >
-                        {g.summary}
+                        {g.shortTheme}
                       </Text>
-                    )}
-
-                    {!!g.shareUrl && (
-                      <TouchableOpacity
-                        onPress={() => handleOpenShareUrl(g.shareUrl)}
-                      >
-                        <Text style={styles.shareLink}>
-                          View shared garden
-                        </Text>
-                      </TouchableOpacity>
                     )}
                   </View>
 
@@ -342,24 +309,38 @@ export function HistoryScreen() {
                     />
                   )}
                 </TouchableOpacity>
+                <View
+                  style={[
+                    styles.statusPill,
+                    { borderColor: color },
+                    !isReady && { opacity: 0.7 },
+                  ]}
+                >
+                  <Text style={[styles.statusPillText, { color }]}>
+                    {g.status}
+                  </Text>
+                </View>
               </View>
             );
           })}
         </View>
       </ScrollView>
 
-      {/* Flipbook modal */}
       <GardenPreviewModal
         visible={modalVisible}
         gallery={gallery}
         initialIndex={modalInitialIndex}
         onClose={() => setModalVisible(false)}
       />
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    paddingTop: 20,
+  },
   container: {
     flex: 1,
     backgroundColor: "#f9fafb",
@@ -370,9 +351,11 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   title: {
-    fontSize: 22,
-    fontWeight: "700",
+    fontFamily: "ZenLoop",
+    textAlign: "center",
+    fontSize: 40,
     marginBottom: 4,
+    color: "rgba(78, 138, 135, 1)",
   },
   subtitle: {
     fontSize: 13,
@@ -380,6 +363,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   filtersRow: {
+    justifyContent: "center",
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
@@ -405,6 +389,7 @@ const styles = StyleSheet.create({
   },
   legendRow: {
     flexDirection: "row",
+    justifyContent: "center",
     gap: 12,
     marginBottom: 12,
   },
@@ -443,9 +428,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   timelineList: {
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 4,
   },
   timelineItem: {
+    justifyContent: "center",
+    alignItems: "center",
+    maxWidth: 600,
     flexDirection: "row",
     marginBottom: 12,
   },
@@ -465,10 +455,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   card: {
+    justifyContent: "center",
     flex: 1,
     flexDirection: "row",
     alignItems: "stretch",
-    backgroundColor: "rgba(255,255,255,0.9)",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#bbf7d0",
@@ -478,11 +468,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
   },
   cardBody: {
     flex: 1,
     justifyContent: "center",
+    alignItems: "center",
   },
   cardHeaderRow: {
     flexDirection: "row",
@@ -490,13 +480,21 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   cardTitle: {
+    fontFamily: "PoiretOne",
+    flex: 1,
+    fontSize: 20,
+    color: "#047857",
+  },
+  cardSubtitle: {
+    fontFamily: "PoiretOne",
     flex: 1,
     fontSize: 14,
-    fontWeight: "600",
-    color: "#064e3b",
+    color: "#047857",
   },
   statusPill: {
-    marginLeft: 4,
+    position: "absolute",
+    top: 1,
+    right: 1,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 999,
@@ -514,8 +512,11 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   cardSummary: {
-    fontSize: 12,
-    color: "#374151",
+    fontFamily: "OoohBaby",
+    fontSize: 15,
+    paddingVertical: 3,
+    borderRadius: 20,
+    color: "#047857",
     marginBottom: 4,
   },
   shareLink: {
@@ -524,8 +525,61 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
   },
   cardImage: {
-    width: 72,
-    height: 72,
+    width: 90,
+    height: 90,
     borderRadius: 10,
   },
 });
+
+function formatMonth(month: string) {
+  const date = new Date(`${month}-01`);
+  const formattedDate = date.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+  return formattedDate;
+}
+
+function weekStringToMondayDate(isoWeek: string): Date {
+  const [yearStr, weekStr] = isoWeek.split("-W");
+  const year = Number(yearStr);
+  const week = Number(weekStr);
+
+  // ISO week logic: week 1 is the week with Jan 4th in it
+  const simple = new Date(year, 0, 1 + (week - 1) * 7);
+  const dow = simple.getDay(); // 0=Sun ... 6=Sat
+  const isoMonday = new Date(simple);
+
+  // Adjust to Monday
+  const diff = (dow === 0 ? -6 : 1) - dow;
+  isoMonday.setDate(simple.getDate() + diff);
+
+  return isoMonday;
+}
+
+function formatWithOrdinal(n: number) {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function formatWeek(isoWeek: string) {
+  const monday = weekStringToMondayDate(isoWeek);
+
+  const day = formatWithOrdinal(monday.getDate());
+  const month = monday.toLocaleString("en-US", { month: "long" });
+  const year = monday.getFullYear();
+
+  return `Week of ${day} ${month} ${year}`;
+}
+
+function formatPeriod(g: Garden) {
+  switch (g.period) {
+    case "WEEK":
+      return formatWeek(g.periodKey);
+    case "MONTH":
+      return formatMonth(g.periodKey);
+    default:
+      return g.periodKey;
+  }
+}

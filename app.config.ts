@@ -6,6 +6,9 @@ export default {
     name: "Mood Gardens",
     slug: "mood-gardens-mobile",
     scheme: "moodgardens", // optional but nice for deep links
+    "plugins": [
+    "expo-font"
+  ],
     ios: {
       bundleIdentifier: "com.alex.moodgardens",
     },

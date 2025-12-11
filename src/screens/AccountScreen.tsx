@@ -8,7 +8,7 @@ import {
   Text,
   TextInput,
   View,
-  ScrollView
+  ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -16,24 +16,14 @@ import { useApolloClient } from "@apollo/client/react";
 import { useQuery, useMutation } from "@apollo/client/react";
 import * as SecureStore from "expo-secure-store";
 
-import { CURRENT_USER_QUERY } from "../graphql/auth";
+import { CURRENT_USER_QUERY, type CurrentUserData } from "../graphql/auth";
 import { UpdateUserProfile, ChangePassword } from "../graphql/userProfile";
 import {
   MARK_USER_PREMIUM_FROM_MOBILE,
   ADD_REGEN_TOKENS_FROM_MOBILE,
 } from "../graphql/billing"; // 👈 new
-
-interface CurrentUserData {
-  user: {
-    id: string;
-    email: string;
-    displayName: string | null;
-    isPremium?: boolean | null;
-    premiumSince?: string | null;
-    createdAt?: string | null;
-    regenerateTokens?: number | null; // 👈 new
-  } | null;
-}
+import { MGText } from "../components/MGText";
+import { MGButton } from "../components/button";
 
 interface UpdateUserProfileData {
   updateUserProfile: {
@@ -236,7 +226,7 @@ export function AccountScreen() {
     return (
       <SafeAreaView style={styles.center}>
         <ActivityIndicator />
-        <Text style={styles.muted}>Loading your account…</Text>
+        <MGText style={styles.muted}>Loading your account…</MGText>
       </SafeAreaView>
     );
   }
@@ -244,11 +234,11 @@ export function AccountScreen() {
   if (error) {
     return (
       <SafeAreaView style={styles.center}>
-        <Text style={styles.error}>
+        <MGText style={styles.error}>
           Could not load account: {error.message}
-        </Text>
+        </MGText>
         <View style={{ marginTop: 12 }}>
-          <Button title="Retry" onPress={() => refetch()} />
+          <MGButton title="Retry" onPress={() => refetch()} />
         </View>
       </SafeAreaView>
     );
@@ -257,10 +247,10 @@ export function AccountScreen() {
   if (!user) {
     return (
       <SafeAreaView style={styles.center}>
-        <Text style={styles.title}>Account</Text>
-        <Text style={styles.muted}>You’re not logged in right now.</Text>
+        <MGText style={styles.title}>Account</MGText>
+        <MGText style={styles.muted}>You’re not logged in right now.</MGText>
         <View style={{ marginTop: 12 }}>
-          <Button
+          <MGButton
             title="Go to login"
             onPress={() => {
               const rootNav = navigation.getParent()?.getParent();
@@ -275,120 +265,24 @@ export function AccountScreen() {
   const regenTokens = user.regenerateTokens ?? 0;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>Account</Text>
-
-        {/* PROFILE SECTION */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Profile</Text>
-
-          <Text style={styles.label}>Display name</Text>
-          <TextInput
-            style={styles.input}
-            value={displayName}
-            onChangeText={setDisplayName}
-            placeholder="Your display name"
-          />
-
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            placeholder="you@example.com"
-          />
-
-          {profileMessage && (
-            <Text
-              style={[
-                styles.message,
-                profileMessage.includes("✔")
-                  ? styles.messageSuccess
-                  : styles.messageError,
-              ]}
-            >
-              {profileMessage}
-            </Text>
-          )}
-
-          <View style={{ marginTop: 8 }}>
-            <Button
-              title={savingProfile ? "Saving…" : "Save profile"}
-              onPress={handleSaveProfile}
-              disabled={savingProfile}
-            />
-          </View>
-        </View>
-
-        {/* PASSWORD SECTION */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Change password</Text>
-
-          <Text style={styles.label}>Current password</Text>
-          <TextInput
-            style={styles.input}
-            value={currentPassword}
-            onChangeText={setCurrentPassword}
-            secureTextEntry
-          />
-
-          <Text style={styles.label}>New password</Text>
-          <TextInput
-            style={styles.input}
-            value={newPassword}
-            onChangeText={setNewPassword}
-            secureTextEntry
-          />
-
-          <Text style={styles.label}>Confirm new password</Text>
-          <TextInput
-            style={styles.input}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-          />
-
-          {passwordMessage && (
-            <Text
-              style={[
-                styles.message,
-                passwordMessage.includes("✔")
-                  ? styles.messageSuccess
-                  : styles.messageError,
-              ]}
-            >
-              {passwordMessage}
-            </Text>
-          )}
-
-          <View style={{ marginTop: 8 }}>
-            <Button
-              title={savingPassword ? "Changing…" : "Change password"}
-              onPress={handleChangePassword}
-              disabled={savingPassword}
-            />
-          </View>
-        </View>
-
         {/* PLAN + TOKENS SECTION */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Plan & tokens</Text>
+          <MGText style={styles.cardTitle}>Plan & tokens</MGText>
 
           {/* Premium status */}
-          <Text style={styles.label}>Subscription</Text>
-          <Text style={[styles.value, isPremium && styles.premiumValue]}>
+          <MGText style={styles.label}>Subscription</MGText>
+          <MGText style={[styles.freeValue, isPremium && styles.premiumValue]}>
             {isPremium ? "Premium 🌟" : "Free"}
-          </Text>
+          </MGText>
 
           {!isPremium && (
             <View style={{ marginTop: 8 }}>
-              <Button
+              <MGButton
                 title={
                   upgradingPremium
                     ? "Activating Premium (dev)…"
@@ -401,26 +295,27 @@ export function AccountScreen() {
           )}
 
           {isPremium && (
-            <Text style={[styles.muted, { marginTop: 4 }]}>
+            <MGText style={[styles.muted, { marginTop: 4 }]}>
               You’re marked as premium. Real in-app purchases will be added
               later.
-            </Text>
+            </MGText>
           )}
 
           {/* Regenerate tokens */}
           <View style={{ marginTop: 16 }}>
-            <Text style={styles.label}>Regenerate gardens tokens</Text>
-            <Text style={styles.value}>
-              {regenTokens} token{regenTokens === 1 ? "" : "s"} available
-            </Text>
-
-            <Text style={[styles.muted, { marginTop: 4 }]}>
+            <MGText style={[styles.label, {textAlign:"center"}]}>Regenerate garden tokens</MGText>
+            <View style={{ alignItems: "center" }}>
+              <MGText style={styles.value}>
+                {regenTokens} token{regenTokens === 1 ? "" : "s"}
+              </MGText>
+            </View> 
+            <MGText style={[styles.muted, { marginTop: 4 }]}>
               Tokens let you regenerate an existing garden with a new variation.
               For now, you can add tokens in dev mode.
-            </Text>
+            </MGText>
 
             <View style={{ marginTop: 8 }}>
-              <Button
+              <MGButton
                 title={
                   addingTokens
                     ? "Adding tokens (dev)…"
@@ -430,6 +325,99 @@ export function AccountScreen() {
                 disabled={addingTokens}
               />
             </View>
+          </View>
+        </View>
+        {/* PROFILE SECTION */}
+        <View style={styles.card}>
+          <MGText style={styles.cardTitle}>Profile</MGText>
+
+          <MGText style={styles.label}>Display name</MGText>
+          <TextInput
+            style={styles.input}
+            value={displayName}
+            onChangeText={setDisplayName}
+            placeholder="Your display name"
+          />
+
+          <MGText style={styles.label}>Email</MGText>
+          <TextInput
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            placeholder="you@example.com"
+          />
+
+          {profileMessage && (
+            <MGText
+              style={[
+                styles.message,
+                profileMessage.includes("✔")
+                  ? styles.messageSuccess
+                  : styles.messageError,
+              ]}
+            >
+              {profileMessage}
+            </MGText>
+          )}
+
+          <View style={{ marginTop: 8 }}>
+            <MGButton
+              title={savingProfile ? "Saving…" : "Save profile"}
+              onPress={handleSaveProfile}
+              disabled={savingProfile}
+            />
+          </View>
+        </View>
+
+        {/* PASSWORD SECTION */}
+        <View style={styles.card}>
+          <MGText style={styles.cardTitle}>Change password</MGText>
+
+          <MGText style={styles.label}>Current password</MGText>
+          <TextInput
+            style={styles.input}
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+            secureTextEntry
+          />
+
+          <MGText style={styles.label}>New password</MGText>
+          <TextInput
+            style={styles.input}
+            value={newPassword}
+            onChangeText={setNewPassword}
+            secureTextEntry
+          />
+
+          <MGText style={styles.label}>Confirm new password</MGText>
+          <TextInput
+            style={styles.input}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+          />
+
+          {passwordMessage && (
+            <MGText
+              style={[
+                styles.message,
+                passwordMessage.includes("✔")
+                  ? styles.messageSuccess
+                  : styles.messageError,
+              ]}
+            >
+              {passwordMessage}
+            </MGText>
+          )}
+
+          <View style={{ marginTop: 8 }}>
+            <MGButton
+              title={savingPassword ? "Changing…" : "Change password"}
+              onPress={handleChangePassword}
+              disabled={savingPassword}
+            />
           </View>
         </View>
 
@@ -443,15 +431,13 @@ export function AccountScreen() {
           />
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   scrollContent: {
-    padding: 16,
-    paddingTop: 50,
-    paddingBottom: 24, // so last button isn’t flush with bottom
+    paddingHorizontal: 16,
   },
   center: {
     flex: 1,
@@ -461,9 +447,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   container: {
+    paddingBottom:0,
     flex: 1,
-    padding: 16,
-    paddingTop: 50,
+    paddingHorizontal: 16,
   },
   title: {
     fontSize: 22,
@@ -479,13 +465,14 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 35,
+    fontFamily: "ZenLoop",
     marginBottom: 8,
+    color: "#047857",
   },
   label: {
-    fontSize: 12,
-    color: "#777",
+    fontSize: 20,
+    color: "#047857",
     marginBottom: 4,
     marginTop: 6,
   },
@@ -498,12 +485,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   value: {
-    fontSize: 14,
-    color: "#222",
+    textAlign: "center",
+    width: 50,
+    height: 50,
+    borderRadius: 50,
+    backgroundColor: "#A09FFF",
+    fontSize: 30,
+    lineHeight: 30,
+    color: "white",
+    padding: 10,
+    fontWeight: "900",
+  },
+  freeValue: {
+    textAlign: "center",
+    padding: 5,
+    borderRadius: 20,
+    backgroundColor: "#B4CDC7",
+    color: "white",
+    fontSize: 25,
+    fontWeight: "900",
   },
   premiumValue: {
-    color: "#27ae60",
-    fontWeight: "600",
+    textAlign: "center",
+    padding: 5,
+    borderRadius: 20,
+    backgroundColor: "#ebad3bff",
+    color: "white",
+    fontSize: 25,
+    fontWeight: "900",
   },
   muted: {
     fontSize: 14,

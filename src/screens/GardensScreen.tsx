@@ -15,6 +15,9 @@ import {
   GardenPreviewModal,
   SelectedGarden,
 } from "../components/GardenPreviewModal";
+import { MGText } from "../components/MGText";
+import { CalendarButton } from "../components/button";
+import { type Garden } from "./HistoryScreen";
 
 type CalendarDay = {
   dateString: string;
@@ -24,42 +27,29 @@ type CalendarDay = {
 };
 
 type GardensByMonthData = {
-  gardensByMonth: {
-    id: string;
-    period: string;
-    periodKey: string; // e.g. "2025-11-03"
-    status: "PENDING" | "READY" | "FAILED";
-    imageUrl?: string | null;
-    publicId: string;
-    summary?: string | null;
-    progress?: number | null;
-    shareUrl?: string | null;
-    updatedAt: string;
-  }[];
+  gardensByMonth: Garden[];
 };
 
 type GardensByMonthVars = {
-  monthKey: string; // e.g. "2025-11"
+  monthKey: string;
 };
 
-export function GardensScreen() {
-  const today = new Date();
-  const [currentMonthDate, setCurrentMonthDate] = useState(() => {
-    const d = new Date();
-    d.setDate(1);
-    return d;
-  });
-  const year = currentMonthDate.getFullYear();
-  const month = currentMonthDate.getMonth() + 1; // 1–12
+function setInitialDate() {
+  const d = new Date();
+  d.setDate(1);
+  return d;
+}
 
+export function GardensScreen() {
+  const [currentMonthDate, setCurrentMonthDate] = useState(setInitialDate);
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth() + 1;
   const monthKey = useMemo(
     () => `${year}-${String(month).padStart(2, "0")}`,
     [year, month]
   );
-
   const [modalVisible, setModalVisible] = useState(false);
   const [modalIndex, setModalIndex] = useState(0);
-
   const { data, loading, error, refetch } = useQuery<
     GardensByMonthData,
     GardensByMonthVars
@@ -74,27 +64,27 @@ export function GardensScreen() {
 
   const gardens = data?.gardensByMonth ?? [];
 
-  // Build gallery for modal
-  const gallery: SelectedGarden[] = useMemo(
-    () =>
-      gardens.map((g) => ({
-        dayKey: g.periodKey,
-        publicId: g.publicId,
-        summary: g.summary,
-        shareUrl: g.shareUrl ?? null,
-        imageUrl: g.imageUrl ?? null,
-        hasDiaryEntry: true, 
-      })),
-    [gardens]
-  );
+ const gallery: SelectedGarden[] = useMemo(
+  () =>
+    gardens.map((g) => ({
+      dayKey: g.periodKey,
+      publicId: g.publicId,
+      summary: g.summary,
+      shareUrl: g.shareUrl ?? null,
+      imageUrl: g.imageUrl ?? null,
+      hasDiaryEntry: true,
+      version: g.version ?? null,   // 👈 add this
+    })),
+  [gardens]
+);
 
-  // For calendar markers: days that have a garden
+
   const markedDates = useMemo(() => {
     const marks: Record<string, any> = {};
     for (const g of gardens) {
       marks[g.periodKey] = {
-        marked: true,
-        dotColor: "#2ecc71",
+        selected: true,
+        selectedColor:"#C5D7D3"            
       };
     }
     return marks;
@@ -125,13 +115,10 @@ export function GardensScreen() {
   });
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Gardens</Text>
-
-      {/* Month/year selector */}
       <View style={styles.monthSelector}>
-        <Button title="‹" onPress={() => changeMonth(-1)} />
-        <Text style={styles.monthLabel}>{monthLabel}</Text>
-        <Button title="›" onPress={() => changeMonth(1)} />
+        <CalendarButton  title="❮" onPress={() => changeMonth(-1)} />
+        <MGText style={styles.monthLabel}>{monthLabel}</MGText>
+        <CalendarButton title="❯" onPress={() => changeMonth(1)} />
       </View>
 
       {/* Calendar */}
@@ -159,10 +146,13 @@ export function GardensScreen() {
             hideExtraDays
             disableMonthChange={true}
             hideArrows={true}
-            renderHeader={() => <View />} // 👈 hide built-in month label completely
+            renderHeader={() => <View />}
             theme={{
-              dotColor: "#2ecc71",
-              selectedDotColor: "#2ecc71",
+                  textSectionTitleColor: "white", // 👈 weekday header color
+
+              dayTextColor: "white",
+              calendarBackground: "#B4CDC7",
+              dotStyle: { width: 10, height: 10, borderRadius: 5 },
             }}
           />
         )}
@@ -170,9 +160,9 @@ export function GardensScreen() {
 
       {/* Info text */}
       <View style={styles.infoBox}>
-        <Text style={styles.muted}>
+        <MGText style={styles.muted}>
           Tap a date with a dot to view that day&apos;s garden and diary entry.
-        </Text>
+        </MGText>
       </View>
 
       {/* Preview modal */}
@@ -191,6 +181,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     paddingTop: 50,
+    backgroundColor:"#f2f7f3",
   },
   title: {
     fontSize: 22,
@@ -204,8 +195,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   monthLabel: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontFamily: "ZenLoop",
+    fontSize: 40,
   },
   calendarWrapper: {
     borderRadius: 12,

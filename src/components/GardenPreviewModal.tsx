@@ -30,8 +30,9 @@ export type SelectedGarden = {
   publicId: string;
   summary?: string | null;
   shareUrl?: string | null;
-  imageUrl?: string | null;      // left in type for now, but we no longer use it
-  hasDiaryEntry?: boolean;       // weekly/monthly/yearly: false
+  imageUrl?: string | null;   
+  hasDiaryEntry?: boolean;
+  version?: number | null;       
 };
 
 type DiaryEntryData = {
@@ -349,8 +350,15 @@ function GardenModalContent({
   disableControls,
   pageWidth,
 }: GardenModalContentProps) {
+    
   // Build optimized Cloudinary URL from publicId + width
-  const optimizedUrl = getOptimizedCloudinaryUrl(selected.publicId, pageWidth);
+  const optimizedUrl = getOptimizedCloudinaryUrl(selected.publicId, pageWidth, selected.version ?? null);
+console.log(
+  "[Calendar modal] dayKey:", selected.dayKey,
+  "publicId:", selected.publicId,
+  "version:", selected.version,
+  "url:", optimizedUrl
+);
 
   async function handleOpenImage() {
     try {
@@ -425,6 +433,7 @@ function GardenModalContent({
           {optimizedUrl ? (
             <>
               <Image
+                key={optimizedUrl}
                 source={{ uri: optimizedUrl }}
                 style={styles.image}
                 resizeMode="contain"

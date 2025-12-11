@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Text,
   View,
-  Button,
   TouchableOpacity,
   RefreshControl,
   Image,
@@ -20,8 +19,9 @@ import {
   PaginatedDiaryEntries,
 } from "../graphql/diary";
 import { getOptimizedCloudinaryUrl } from "../utils/cloudinary"; // 👈 NEW
-
-type GardenStatus = "PENDING" | "READY" | "FAILED";
+import { MGText } from "../components/MGText";
+import { MGButton } from "../components/button";
+import {type Garden} from "./HistoryScreen"
 
 interface CurrentUserData {
   user: {
@@ -40,16 +40,7 @@ interface DiaryEntry {
   text: string;
   dayKey: string;
   createdAt: string;
-  garden?: {
-    id: string;
-    status: GardenStatus;
-    imageUrl?: string | null;   // still in type, but no longer used
-    publicId?: string | null;   // 👈 important for Cloudinary
-    shareUrl?: string | null;
-    progress?: number | null;
-    periodKey: string;
-    updatedAt: string;
-  } | null;
+  garden?: Garden;
 }
 
 interface TodayEntryData {
@@ -154,11 +145,14 @@ export function TodayScreen() {
       navigation.navigate("EntryDetail", { entry: item });
     };
 
-    // 👇 NEW: build Cloudinary thumbnail from publicId
     const thumbUrl =
-      status === "READY" && garden?.publicId
-        ? getOptimizedCloudinaryUrl(garden.publicId, 800)
-        : null;
+  status === "READY" && garden?.publicId
+    ? getOptimizedCloudinaryUrl(
+        garden.publicId,
+        800,
+        garden.version ?? undefined
+      )
+    : null;
 
     return (
       <TouchableOpacity
@@ -166,13 +160,14 @@ export function TodayScreen() {
         activeOpacity={0.8}
         onPress={onPress}
       >
-        <Text style={styles.entryDate}>{item.dayKey}</Text>
-        <Text style={styles.entryText} numberOfLines={3}>
+        <MGText style={styles.entryDate}>{item.dayKey}</MGText>
+        <MGText style={styles.entryText} numberOfLines={3}>
           {item.text}
-        </Text>
+        </MGText>
 
         {status === "READY" && thumbUrl && (
           <Image
+              key={thumbUrl}    
             source={{ uri: thumbUrl }}
             style={styles.gardenImage}
             resizeMode="cover"
@@ -181,8 +176,8 @@ export function TodayScreen() {
 
         {status && (
           <View style={styles.gardenStatusRow}>
-            <Text style={styles.gardenStatusLabel}>Garden:</Text>
-            <Text style={styles.gardenStatusValue}>{status}</Text>
+            <MGText style={styles.gardenStatusLabel}>Garden:</MGText>
+            <MGText style={styles.gardenStatusValue}>{status}</MGText>
           </View>
         )}
 
@@ -203,7 +198,6 @@ export function TodayScreen() {
     if (todayMetaLoading || todayEntryLoading) {
       return (
         <View style={styles.todayCard}>
-          <Text style={styles.title}>Today</Text>
           <ActivityIndicator />
           <Text style={styles.muted}>Checking today’s entry…</Text>
         </View>
@@ -213,10 +207,9 @@ export function TodayScreen() {
     if (todayMetaError) {
       return (
         <View style={styles.todayCard}>
-          <Text style={styles.title}>Today</Text>
-          <Text style={styles.errorText}>
+          <MGText style={styles.errorText}>
             Could not load today’s date information.
-          </Text>
+          </MGText>
         </View>
       );
     }
@@ -224,10 +217,9 @@ export function TodayScreen() {
     if (!todayKey) {
       return (
         <View style={styles.todayCard}>
-          <Text style={styles.title}>Today</Text>
-          <Text style={styles.muted}>
+          <MGText style={styles.muted}>
             We couldn’t determine today’s diary key. Please try again later.
-          </Text>
+          </MGText>
         </View>
       );
     }
@@ -235,16 +227,15 @@ export function TodayScreen() {
     if (!todayEntry) {
       return (
         <View style={styles.todayCard}>
-          <Text style={styles.title}>Today</Text>
-          <Text style={styles.subtitle}>
+          <MGText style={styles.subtitle}>
             What’s on your mind today, {displayName}?
-          </Text>
-          <Text style={styles.muted}>
+          </MGText>
+          <MGText style={styles.muted}>
             You haven’t written your entry for today yet.
-          </Text>
+          </MGText>
 
           <View style={styles.todayButtonWrap}>
-            <Button title="Write today’s entry" onPress={onPressNewEntry} />
+            <MGButton title="Write today’s entry" onPress={onPressNewEntry} />
           </View>
         </View>
       );
@@ -252,12 +243,11 @@ export function TodayScreen() {
 
     return (
       <View style={styles.todayCard}>
-        <Text style={styles.title}>Today</Text>
-        <Text style={styles.subtitle}>Nice work, {displayName} 🌱</Text>
-        <Text style={styles.muted}>
+        <MGText style={styles.subtitle}>Nice work, {displayName}</MGText>
+        <MGText style={styles.muted}>
           You already wrote your entry for today ({todayKey}). Scroll down to
           revisit your past gardens.
-        </Text>
+        </MGText>
       </View>
     );
   };
@@ -266,7 +256,7 @@ export function TodayScreen() {
     return (
       <View style={styles.center}>
         <ActivityIndicator />
-        <Text style={styles.muted}>Loading your diary…</Text>
+        <MGText style={styles.muted}>Loading your diary…</MGText>
       </View>
     );
   }
@@ -274,9 +264,9 @@ export function TodayScreen() {
   if (feedError) {
     return (
       <View style={styles.center}>
-        <Text style={styles.errorText}>
+        <MGText style={styles.errorText}>
           Could not load your diary: {feedError.message}
-        </Text>
+        </MGText>
       </View>
     );
   }
@@ -341,7 +331,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 22,
     marginBottom: 4,
   },
   muted: {
@@ -349,8 +339,9 @@ const styles = StyleSheet.create({
     color: "#666",
   },
   todayButtonWrap: {
+    alignItems:"center",
+    justifyContent:"center",
     marginTop: 12,
-    alignSelf: "flex-start",
   },
   entryCard: {
     padding: 14,
@@ -366,8 +357,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   entryText: {
-    fontSize: 14,
-    color: "#222",
+    fontFamily: "OoohBaby",
+    fontSize: 20,
     marginBottom: 8,
   },
   gardenStatusRow: {

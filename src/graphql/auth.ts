@@ -27,3 +27,19 @@ export const CURRENT_USER_QUERY = gql`
     }
   }
 `;
+
+
+
+export interface CurrentUserData {
+  user: User
+}
+
+export type User= {
+    id: string;
+    email: string;
+    displayName: string | null;
+    isPremium?: boolean | null;
+    premiumSince?: string | null;
+    createdAt?: string | null;
+    regenerateTokens?: number | null; // 👈 new
+  } | null;

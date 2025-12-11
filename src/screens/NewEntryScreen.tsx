@@ -8,6 +8,7 @@ import {
   Text,
   TextInput,
   View,
+  Pressable,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useQuery, useMutation } from "@apollo/client/react";
@@ -18,6 +19,15 @@ import {
   RequestGenerateGarden,
 } from "../graphql/diary";
 import { GetGarden } from "../graphql/gardens";
+import { MGText } from "../components/MGText";
+import { MGButton } from "../components/button";
+import {
+  CURRENT_USER_QUERY,
+  type CurrentUserData,
+  User,
+} from "../graphql/auth";
+import { useGardenGeneration } from "../hooks/useGardenGeneration";
+
 
 type GardenType = "CLASSIC" | "UNDERWATER" | "GALAXY";
 type GardenStatus = "PENDING" | "READY" | "FAILED";
@@ -44,6 +54,7 @@ interface RequestGenerateGardenData {
     shareUrl?: string | null;
     progress?: number | null;
     updatedAt: string;
+    version?: number | null;
   };
 }
 
@@ -67,9 +78,15 @@ export function NewEntryScreen() {
 
   const [text, setText] = useState("");
   const [selectedType, setSelectedType] = useState<GardenType>("CLASSIC");
-  const [isGenerating, setIsGenerating] = useState(false);
   const [todayKey, setTodayKey] = useState<string | null>(null);
+  const { data, loading, error, refetch } = useQuery<CurrentUserData>(
+    CURRENT_USER_QUERY,
+    {
+      fetchPolicy: "cache-and-network",
+    }
+  );
 
+  const user = data?.user ?? null;
   // 1) Get today's diary day key
   const {
     data: todayMetaData,
@@ -86,28 +103,16 @@ export function NewEntryScreen() {
   const [requestGarden, { loading: requesting, error: requestError }] =
     useMutation<RequestGenerateGardenData>(RequestGenerateGarden);
 
-  // 3) Poll garden status once we've started generation
-  const {
-    data: gardenData,
-    loading: gardenLoading,
-    error: gardenError,
-  } = useQuery<GardenData>(GetGarden, {
-    variables: {
-      period: "DAY",
-      periodKey: todayKey as string,
-    },
-    skip: !todayKey || !isGenerating,
-    fetchPolicy: "network-only",
-    pollInterval: 2000,
-    notifyOnNetworkStatusChange: true,
-  });
+    const [isGenerating, setIsGenerating] = useState(false);
 
-  const garden = gardenData?.garden ?? null;
-  const status = garden?.status;
-  const progress =
-    typeof garden?.progress === "number"
-      ? Math.round(garden.progress as number)
-      : null;
+const {
+  garden,
+  status,
+  progress,
+  loading: gardenLoading,
+  error: gardenError,
+} = useGardenGeneration(todayKey, isGenerating);
+
 
   // When garden becomes READY, go back to Today (Home)
   useEffect(() => {
@@ -117,7 +122,6 @@ export function NewEntryScreen() {
       // small delay is optional; remove if you prefer instant jump
       setTimeout(() => {
         navigation.navigate("TodayMain");
-
       }, 500);
     }
   }, [isGenerating, status, navigation]);
@@ -131,9 +135,7 @@ export function NewEntryScreen() {
       return;
     }
 
-    const dayKey =
-      todayMetaData?.currentDiaryDayKey ??
-      null;
+    const dayKey = todayMetaData?.currentDiaryDayKey ?? null;
 
     if (!dayKey) {
       Alert.alert(
@@ -200,34 +202,53 @@ export function NewEntryScreen() {
 
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Today’s entry</Text>
-        <Text style={styles.subtitle}>
+        <MGText style={styles.subtitle}>
           Write about your day. We’ll grow a Mood Garden from your words.
-        </Text>
-
-        <TextInput
-          style={styles.textarea}
-          multiline
-          numberOfLines={6}
-          placeholder="How are you feeling? What happened today?"
-          value={text}
-          onChangeText={setText}
-          textAlignVertical="top"
-        />
+        </MGText>
+        <View style={{ position: "relative" }}>
+          {text.length === 0 && (
+            <Text
+              style={{
+                position: "absolute",
+                left: 12,
+                top: 12,
+                color: "rgba(94, 165, 162, 1)",
+                fontFamily: "OoohBaby",
+                fontSize: 18,
+                zIndex: 1,
+              }}
+            >
+              How are you feeling? What happened today?
+            </Text>
+          )}
+          <TextInput
+            style={styles.textarea}
+            multiline
+            numberOfLines={6}
+            placeholder=""
+            placeholderTextColor={"rgba(94, 165, 162, 1)"}
+            value={text}
+            onChangeText={setText}
+            textAlignVertical="top"
+          />
+        </View>
 
         {/* garden type buttons */}
         <View style={styles.typeRow}>
           <GardenTypeButton
+            user={user}
             label="Classic"
             active={selectedType === "CLASSIC"}
             onPress={() => setSelectedType("CLASSIC")}
           />
           <GardenTypeButton
+            user={user}
             label="Underwater"
             active={selectedType === "UNDERWATER"}
             onPress={() => setSelectedType("UNDERWATER")}
           />
           <GardenTypeButton
+            user={user}
             label="Galaxy"
             active={selectedType === "GALAXY"}
             onPress={() => setSelectedType("GALAXY")}
@@ -235,17 +256,21 @@ export function NewEntryScreen() {
         </View>
 
         <View style={styles.submitWrap}>
-          <Button
-            title={submitting ? "Generating…" : "Generate garden"}
+          <MGButton
+            title={
+              submitting
+                ? "Generating…"
+                : `Generate ${getGardentype(selectedType)}`
+            }
             onPress={() => handleGenerate(selectedType)}
             disabled={submitting}
           />
         </View>
 
         {(createError || requestError) && (
-          <Text style={styles.error}>
+          <MGText style={styles.error}>
             {createError?.message || requestError?.message}
-          </Text>
+          </MGText>
         )}
       </View>
     );
@@ -254,47 +279,48 @@ export function NewEntryScreen() {
   // STEP 2: Generating view (after requestGenerateGarden)
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Growing your garden… 🌱</Text>
-      <Text style={styles.subtitle}>
-        This might take a little moment. You can leave this screen – your
-        garden will appear on Today when it’s ready.
-      </Text>
+      <MGText style={styles.title}>
+        {selectedType === "CLASSIC" && "Growing your garden…"}
+        {selectedType === "UNDERWATER" && "Growing your underwater garden…"}
+        {selectedType === "GALAXY" && "Creating your galaxy…"}
+      </MGText>
+      <MGText style={styles.subtitle}>
+        This might take a little moment. You can leave this screen – your garden
+        will appear on Today when it’s ready.
+      </MGText>
 
       <View style={styles.statusBox}>
         {gardenLoading && !garden && <ActivityIndicator />}
 
         {status && (
-          <Text style={styles.statusText}>
-            Status: <Text style={styles.statusBold}>{status}</Text>
-          </Text>
+          <MGText style={styles.statusText}>
+            Status: <MGText style={styles.statusBold}>{status}</MGText>
+          </MGText>
         )}
 
         {typeof progress === "number" && (
           <View style={styles.progressContainer}>
             <View style={styles.progressHeader}>
-              <Text style={styles.progressLabel}>Growing…</Text>
-              <Text style={styles.progressPercent}>{progress}%</Text>
+              <MGText style={styles.progressLabel}>Growing…</MGText>
+              <MGText style={styles.progressPercent}>{progress}%</MGText>
             </View>
             <View style={styles.progressOuter}>
-              <View
-                style={[styles.progressInner, { width: `${progress}%` }]}
-              />
+              <View style={[styles.progressInner, { width: `${progress}%` }]} />
             </View>
           </View>
         )}
 
         {gardenError && (
-          <Text style={styles.error}>
+          <MGText style={styles.error}>
             Error checking garden: {gardenError.message}
-          </Text>
+          </MGText>
         )}
       </View>
 
       <View style={styles.submitWrap}>
-        <Button
+        <MGButton
           title="Back to Today"
-           onPress={() => navigation.navigate("TodayMain")}
-
+          onPress={() => navigation.navigate("TodayMain")}
         />
       </View>
     </View>
@@ -303,24 +329,90 @@ export function NewEntryScreen() {
 
 // small helper component for garden type buttons
 type GTButtonProps = {
+  user: User;
   label: string;
   active: boolean;
   onPress: () => void;
 };
 
-function GardenTypeButton({ label, active, onPress }: GTButtonProps) {
+function GardenTypeButton({ user, label, active, onPress }: GTButtonProps) {
   return (
-    <View style={{ flex: 1, marginHorizontal: 4 }}>
-      <Button
-        title={label}
+    <View
+      style={[
+        styles.gardenButton,
+        label === "Classic" && styles.classicButton,
+        label === "Underwater" && user?.isPremium && styles.underwatterButton,
+        label === "Galaxy" && user?.isPremium && styles.galaxyButton,
+        active && styles.gardenButtonActive,
+      ]}
+    >
+      <Pressable
+        style={{ justifyContent: "center", alignItems: "center" }}
         onPress={onPress}
-        color={active ? "#2ecc71" : undefined}
-      />
+        disabled={
+          !user?.isPremium && (label === "Underwater" || label === "Galaxy")
+        }
+      >
+        <Text
+          style={[
+            styles.gardenButtonText,
+            active && styles.GardenButtonTextActive,
+          ]}
+        >
+          {label}
+        </Text>
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  gardenButton: {
+    backgroundColor: "#9f9f9fff",
+    borderColor: "#8f8f8fff",
+    opacity: 1,
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 3,
+    marginHorizontal: 4,
+    padding: 2,
+    borderWidth: 3,
+  },
+  classicButton: {
+    backgroundColor: "#80b595ff",
+    borderColor: "#7ba88dff",
+  },
+  underwatterButton: {
+    backgroundColor: "#81cdedff",
+    borderColor: "#78bedcff",
+  },
+  galaxyButton: {
+    backgroundColor: "#51517aff",
+    borderColor: "#494968ff",
+  },
+  gardenButtonActive: {
+    borderColor: "#fffefeff",
+    opacity: 1,
+    borderWidth: 3,
+    // iOS
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
+    // Android
+    elevation: 0,
+  },
+  gardenButtonText: {
+    textAlign: "center",
+    lineHeight: 30,
+    fontFamily: "ZenLoop",
+    color: "white",
+    fontSize: 30,
+  },
+  GardenButtonTextActive: {
+    color: "white",
+  },
   center: {
     flex: 1,
     padding: 24,
@@ -328,9 +420,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   container: {
+    backgroundColor: "#9CB7BE",
     flex: 1,
     padding: 20,
-    paddingTop: 60,
   },
   title: {
     fontSize: 22,
@@ -338,8 +430,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
-    color: "#555",
+    color: "white",
     marginBottom: 16,
   },
   muted: {
@@ -348,10 +439,11 @@ const styles = StyleSheet.create({
   },
   textarea: {
     borderWidth: 1,
+    backgroundColor: "white",
     borderColor: "#ccc",
     borderRadius: 10,
     padding: 10,
-    minHeight: 140,
+    minHeight: 300,
     marginBottom: 16,
   },
   typeRow: {
@@ -360,7 +452,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   submitWrap: {
-    marginTop: 4,
+    marginTop: 25,
   },
   error: {
     marginTop: 10,
@@ -404,3 +496,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#2ecc71",
   },
 });
+
+function getGardentype(selectedType: string) {
+  if (selectedType === "CLASSIC") return "mood garden";
+  else if (selectedType === "UNDERWATER") return "underwater garden";
+  else return "mood galaxy";
+}

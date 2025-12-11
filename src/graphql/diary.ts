@@ -37,6 +37,7 @@ export const PaginatedDiaryEntries = gql`
         progress
         periodKey
         updatedAt
+        version
       }
     }
   }
@@ -62,6 +63,7 @@ export const RequestGenerateGarden = gql`
       shareUrl
       progress
       updatedAt
+      version
     }
   }
 `;
